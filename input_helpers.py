@@ -11,6 +11,9 @@ import gzip
 from random import random
 from preprocess import MyVocabularyProcessor
 import sys
+
+import sqlite3
+
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
@@ -65,18 +68,24 @@ class InputHelper(object):
         x1=[]
         x2=[]
         y=[]
+
+        conn = sqlite3.connect("data/lastfm_similars.db")
+        cursor = conn.cursor()
+
+        cursor.execute("""select t.lyrics as x1, t2.lyrics as x2, m.similarity 
+            from top100_similar_top100 m 
+            join songs s on s.track_id = m.tid 
+            join top100 t on s.title = t.title and s.year - t.year between -1 and 1  
+            join songs s2 on s2.track_id = m.target 
+            join top100 t2 on s2.title = t2.title and s2.year - t2.year between -1 and 1;""")
+        all_data = cursor.fetchall()
+        print "{} mappings retrieved from DB".format(len(all_data))
+
         # positive samples from file
-        for line in open(filepath):
-            l=line.strip().split("\t")
-            if len(l)<2:
-                continue
-            if random() > 0.5:
-                x1.append(l[0].lower())
-                x2.append(l[1].lower())
-            else:
-                x1.append(l[1].lower())
-                x2.append(l[0].lower())
-            y.append(int(l[2]))
+        for map in all_data:
+            x1.append(map[0].strip().lower())
+            x2.append(map[1].strip().lower())
+            y.append(float(map[2])*5)
         return np.asarray(x1),np.asarray(x2),np.asarray(y)
 
     def getTsvDataCharBased(self, filepath):
@@ -119,7 +128,7 @@ class InputHelper(object):
                 continue
             x1.append(l[1].lower())
             x2.append(l[2].lower())
-            y.append(int(l[0])) #np.array([0,1]))
+            y.append(int(l[0])*5) #np.array([0,1]))
         return np.asarray(x1),np.asarray(x2),np.asarray(y)  
  
     def batch_iter(self, data, batch_size, num_epochs, shuffle=True):
