@@ -16,7 +16,7 @@ from random import random
 # Parameters
 # ==================================================
 
-tf.flags.DEFINE_boolean("is_char_based", True, "is character based syntactic similarity. "
+tf.flags.DEFINE_boolean("is_char_based", False, "is character based syntactic similarity. "
                                                "if false then word embedding based semantic similarity is used."
                                                "(default: True)")
 
@@ -31,7 +31,7 @@ tf.flags.DEFINE_integer("hidden_units", 50, "Number of hidden units (default:50)
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 300, "Number of training epochs (default: 200)")
+tf.flags.DEFINE_integer("num_epochs", 50, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 1000, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 1000, "Save model after this many steps (default: 100)")
 # Misc Parameters
