@@ -18,22 +18,22 @@ class SiameseLSTM(object):
         with tf.name_scope("fw"+scope),tf.variable_scope("fw"+scope):
             stacked_rnn_fw = []
             for _ in range(n_layers):
-                fw_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
+                fw_cell = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
                 lstm_fw_cell = tf.contrib.rnn.DropoutWrapper(fw_cell,output_keep_prob=dropout)
                 stacked_rnn_fw.append(lstm_fw_cell)
-            lstm_fw_cell_m = tf.nn.rnn_cell.MultiRNNCell(cells=stacked_rnn_fw, state_is_tuple=True)
+            lstm_fw_cell_m = tf.contrib.rnn.MultiRNNCell(cells=stacked_rnn_fw, state_is_tuple=True)
 
         with tf.name_scope("bw"+scope),tf.variable_scope("bw"+scope):
             stacked_rnn_bw = []
             for _ in range(n_layers):
-                bw_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
+                bw_cell = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
                 lstm_bw_cell = tf.contrib.rnn.DropoutWrapper(bw_cell,output_keep_prob=dropout)
                 stacked_rnn_bw.append(lstm_bw_cell)
-            lstm_bw_cell_m = tf.nn.rnn_cell.MultiRNNCell(cells=stacked_rnn_bw, state_is_tuple=True)
+            lstm_bw_cell_m = tf.contrib.rnn.MultiRNNCell(cells=stacked_rnn_bw, state_is_tuple=True)
         # Get lstm cell output
 
         with tf.name_scope("bw"+scope),tf.variable_scope("bw"+scope):
-            outputs, _, _ = tf.nn.static_bidirectional_rnn(lstm_fw_cell_m, lstm_bw_cell_m, x, dtype=tf.float32)
+            outputs, _, _ = tf.contrib.rnn.static_bidirectional_rnn(lstm_fw_cell_m, lstm_bw_cell_m, x, dtype=tf.float32)
         return outputs[-1]
     
     def contrastive_loss(self, y,d,batch_size):
