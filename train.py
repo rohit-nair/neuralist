@@ -198,9 +198,9 @@ with tf.Graph().as_default():
             }
         _, step, loss, accuracy, dist, sim, summaries = sess.run([tr_op_set, global_step, siameseModel.loss, siameseModel.accuracy, siameseModel.distance, siameseModel.temp_sim, train_summary_op],  feed_dict)
         time_str = datetime.datetime.now().isoformat()
-        print("TRAIN {}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+        print("{}% complete TRAIN {}: step {}, loss {:g}, acc {:g}      \r".format((step*100/(FLAGS.batch_size * FLAGS.num_epochs)), time_str, step, loss, accuracy)),
         train_summary_writer.add_summary(summaries, step)
-        print(y_batch, dist, sim)
+        #print(y_batch, dist, sim)
 
     def dev_step(x1_batch, x2_batch, y_batch):
         """
