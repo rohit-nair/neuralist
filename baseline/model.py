@@ -1,3 +1,4 @@
+import sqlite3
 import nltk, string
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -34,6 +35,11 @@ print "{} mappings retrieved from DB".format(len(all_data))
 loss = []
 # positive samples from file
 for map in all_data:
-    loss.append(all_data[2], cosine_sim(map[0].lower(), map[1].lower()))
+    #print len(map), map
+    actual_sim = abs(float(map[2]))
+    cos_sim = cosine_sim(map[0].lower(), map[1].lower())
+    print "Actual {}, Cosine {}".format(actual_sim, cos_sim)
 
-print "Accuracy is {}".format(reduce(x, y: 1 if abs(abs(x[0])-abs(x[1])) < 0.5 else 0, loss)/len(loss))
+    loss.append(1 if int(actual_sim*10) - abs(int(cos_sim*10)) == 0 else 0)
+
+print "Accuracy is {}".format(sum(loss)*1./len(loss))
