@@ -26,14 +26,14 @@ tf.flags.DEFINE_string("word2vec_format", "text", "word2vec pre-trained embeddin
 tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of character embedding (default: 300)")
 tf.flags.DEFINE_float("dropout_keep_prob", 1.0, "Dropout keep probability (default: 1.0)")
 tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularizaion lambda (default: 0.0)")
-tf.flags.DEFINE_string("training_files", "person_match.train2", "training file (default: None)")  #for sentence semantic similarity use "train_snli.txt"
+tf.flags.DEFINE_string("training_files", "master_dataset.csv", "training file (default: None)")  #for sentence semantic similarity use "train_snli.txt"
 tf.flags.DEFINE_integer("hidden_units", 50, "Number of hidden units (default:50)")
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 50, "Number of training epochs (default: 200)")
+tf.flags.DEFINE_integer("num_epochs", 300, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 1000, "Evaluate model on dev set after this many steps (default: 100)")
-tf.flags.DEFINE_integer("checkpoint_every", 1000, "Save model after this many steps (default: 100)")
+tf.flags.DEFINE_integer("checkpoint_every", 10000, "Save model after this many steps (default: 100)")
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
@@ -50,7 +50,7 @@ if FLAGS.training_files==None:
     exit()
 
 
-max_document_length=15
+max_document_length=300
 inpH = InputHelper()
 train_set, dev_set, vocab_processor,sum_no_of_batches = inpH.getDataSets(FLAGS.training_files,max_document_length, 10,
                                                                          FLAGS.batch_size, FLAGS.is_char_based)
@@ -198,7 +198,7 @@ with tf.Graph().as_default():
             }
         _, step, loss, accuracy, dist, sim, summaries = sess.run([tr_op_set, global_step, siameseModel.loss, siameseModel.accuracy, siameseModel.distance, siameseModel.temp_sim, train_summary_op],  feed_dict)
         time_str = datetime.datetime.now().isoformat()
-        print("{}% complete TRAIN {}: step {}, loss {:g}, acc {:g}      \r".format((step*100/(FLAGS.batch_size * FLAGS.num_epochs)), time_str, step, loss, accuracy)),
+        print("TRAIN {}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
         train_summary_writer.add_summary(summaries, step)
         #print(y_batch, dist, sim)
 
@@ -206,20 +206,12 @@ with tf.Graph().as_default():
         """
         A single training step
         """ 
-        if random()>0.5:
-            feed_dict = {
-                siameseModel.input_x1: x1_batch,
-                siameseModel.input_x2: x2_batch,
-                siameseModel.input_y: y_batch,
-                siameseModel.dropout_keep_prob: 1.0,
-            }
-        else:
-            feed_dict = {
-                siameseModel.input_x1: x2_batch,
-                siameseModel.input_x2: x1_batch,
-                siameseModel.input_y: y_batch,
-                siameseModel.dropout_keep_prob: 1.0,
-            }
+        feed_dict = {
+            siameseModel.input_x1: x1_batch,
+            siameseModel.input_x2: x2_batch,
+            siameseModel.input_y: y_batch,
+            siameseModel.dropout_keep_prob: 1.0,
+        }
         step, loss, accuracy, sim, summaries = sess.run([global_step, siameseModel.loss, siameseModel.accuracy, siameseModel.temp_sim, dev_summary_op],  feed_dict)
         time_str = datetime.datetime.now().isoformat()
         print("DEV {}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
@@ -259,5 +251,5 @@ with tf.Graph().as_default():
             if sum_acc >= max_validation_acc:
                 max_validation_acc = sum_acc
                 saver.save(sess, checkpoint_prefix, global_step=current_step)
-                tf.train.write_graph(sess.graph.as_graph_def(), checkpoint_prefix, "graph"+str(nn)+".pb", as_text=False)
-                print("Saved model {} with sum_accuracy={} checkpoint to {}\n".format(nn, max_validation_acc, checkpoint_prefix))
+                tf.train.write_graph(sess.graph.as_graph_def(), checkpoint_prefix, "graph"+str(nn+1)+".pb", as_text=False)
+                print("Saved model {} with sum_accuracy={} checkpoint to {}\n".format(nn+1, max_validation_acc, checkpoint_prefix))
