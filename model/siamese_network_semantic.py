@@ -19,19 +19,27 @@ class SiameseLSTMw2v(object):
         with tf.name_scope("fw"+scope),tf.variable_scope("fw"+scope):
             stacked_rnn_fw = []
             for _ in range(n_layers):
-                fw_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
+                fw_cell = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0, state_is_tuple=True)
                 lstm_fw_cell = tf.contrib.rnn.DropoutWrapper(fw_cell,output_keep_prob=dropout)
                 stacked_rnn_fw.append(lstm_fw_cell)
-            lstm_fw_cell_m = tf.nn.rnn_cell.MultiRNNCell(cells=stacked_rnn_fw, state_is_tuple=True)
+            lstm_fw_cell_m = tf.contrib.rnn.MultiRNNCell(cells=stacked_rnn_fw, state_is_tuple=True)
 
-            outputs, _ = tf.nn.static_rnn(lstm_fw_cell_m, x, dtype=tf.float32)
+            outputs, _ = tf.contrib.rnn.static_rnn(lstm_fw_cell_m, x, dtype=tf.float32)
         return outputs[-1]
 
     def contrastive_loss(self, y,d,batch_size):
-        tmp= y *tf.square(d)
+        tmp= y *tf.scalar_mul(10, tf.square(d))
         #tmp= tf.mul(y,tf.square(d))
-        tmp2 = (1-y) *tf.square(tf.maximum((1 - d),0))
+        tmp2 = (10-y) *tf.scalar_mul(10, tf.square(tf.maximum((1 - d),0)))
         return tf.reduce_sum(tmp +tmp2)/batch_size/2
+    
+    def softmax_logit_loss(self, y, d, batch_size):
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=d)
+        loss = tf.reduce_sum(loss)/batch_size
+        return loss
+    
+    def mean_sqrd_loss(self, y, d, batch_size):
+        return tf.losses.mean_squared_error(labels=y, predictions = tf.subtract(tf.ones_like(self.distance),self.distance))
     
     def __init__(
         self, sequence_length, vocab_size, embedding_size, hidden_units, l2_reg_lambda, batch_size, trainableEmbeddings):
@@ -57,13 +65,17 @@ class SiameseLSTMw2v(object):
         with tf.name_scope("output"):
             self.out1=self.stackedRNN(self.embedded_words1, self.dropout_keep_prob, "side1", embedding_size, sequence_length, hidden_units)
             self.out2=self.stackedRNN(self.embedded_words2, self.dropout_keep_prob, "side2", embedding_size, sequence_length, hidden_units)
+            
+            self.vout1 = tf.subtract(self.out1, tf.zeros_like(self.out1), name="vout1")
+            self.vout2 = tf.subtract(self.out2, tf.zeros_like(self.out2), name="vout2")
+            
             self.distance = tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(self.out1,self.out2)),1,keep_dims=True))
             self.distance = tf.div(self.distance, tf.add(tf.sqrt(tf.reduce_sum(tf.square(self.out1),1,keep_dims=True)),tf.sqrt(tf.reduce_sum(tf.square(self.out2),1,keep_dims=True))))
             self.distance = tf.reshape(self.distance, [-1], name="distance")
         with tf.name_scope("loss"):
-            self.loss = self.contrastive_loss(self.input_y,self.distance, batch_size)
+            self.loss = self.mean_sqrd_loss(self.input_y,self.distance, batch_size)
         #### Accuracy computation is outside of this class.
         with tf.name_scope("accuracy"):
-            self.temp_sim = tf.subtract(tf.ones_like(self.distance),tf.rint(self.distance), name="temp_sim") #auto threshold 0.5
-            correct_predictions = tf.equal(self.temp_sim, self.input_y)
+            self.temp_sim = tf.subtract(tf.ones_like(self.distance),self.distance, name="temp_sim") #auto threshold 0.5
+            correct_predictions = tf.equal(tf.rint(tf.scalar_mul(10, self.temp_sim)), tf.rint(tf.scalar_mul(10, self.input_y)))
             self.accuracy=tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")

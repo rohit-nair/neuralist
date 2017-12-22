@@ -1,3 +1,5 @@
+import csv
+import json
 import numpy as np
 import re
 import itertools
@@ -12,7 +14,6 @@ from random import random
 from preprocess import MyVocabularyProcessor
 import sys
 
-import sqlite3
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -68,25 +69,27 @@ class InputHelper(object):
         x1=[]
         x2=[]
         y=[]
-
-        conn = sqlite3.connect("data/lastfm_similars.db")
-        cursor = conn.cursor()
-
-        cursor.execute("""select t.lyrics as x1, t2.lyrics as x2, m.similarity 
-            from top100_similar_top100 m 
-            join songs s on s.track_id = m.tid 
-            join top100 t on s.title = t.title and s.year - t.year between -1 and 1  
-            join songs s2 on s2.track_id = m.target 
-            join top100 t2 on s2.title = t2.title and s2.year - t2.year between -1 and 1;""")
-        all_data = cursor.fetchall()
-        print "{} mappings retrieved from DB".format(len(all_data))
-
-        # positive samples from file
-        for map in all_data:
-            x1.append(map[0].strip().lower())
-            x2.append(map[1].strip().lower())
-            y.append(float(map[2])*5)
+        
+        with open("master_dataset.csv") as f:
+            reader = csv.reader(f)
+            # positive samples from file
+            for r in reader:
+                x1.append(r[0].strip().lower())
+                x2.append(r[1].strip().lower())
+                y.append(float(r[2]))
         return np.asarray(x1),np.asarray(x2),np.asarray(y)
+
+    def getJsonPCAData(self, filepath):
+        print("Loading training data from " + filepath)
+        x1=[]
+        
+        with open(filepath) as f:
+            songs = json.load(f)
+            # read 2015 songs
+            for s in songs:
+                x1.append(s["lyrics"].strip().lower())
+        print "Loaded {} songs from {}".format(len(x1), filepath)
+        return np.asarray(x1)
 
     def getTsvDataCharBased(self, filepath):
         print("Loading training data from "+filepath)
@@ -121,14 +124,15 @@ class InputHelper(object):
         x1=[]
         x2=[]
         y=[]
-        # positive samples from file
-        for line in open(filepath):
-            l=line.strip().split("\t")
-            if len(l)<3:
-                continue
-            x1.append(l[1].lower())
-            x2.append(l[2].lower())
-            y.append(int(l[0])*5) #np.array([0,1]))
+        # positive samples from file        
+        with open(filepath) as f:
+            reader = csv.reader(f)
+            for l in reader:
+                if len(l)<3:
+                    continue
+                x1.append(l[1].lower())
+                x2.append(l[2].lower())
+                y.append(float(l[0]))
         return np.asarray(x1),np.asarray(x2),np.asarray(y)  
  
     def batch_iter(self, data, batch_size, num_epochs, shuffle=True):
@@ -136,7 +140,7 @@ class InputHelper(object):
         Generates a batch iterator for a dataset.
         """
         data = np.asarray(data)
-        print(data)
+        #print(data)
         print(data.shape)
         data_size = len(data)
         num_batches_per_epoch = int(len(data)/batch_size) + 1
@@ -163,8 +167,9 @@ class InputHelper(object):
         del x1_shuffled
         del y_shuffled
         with open('validation.txt'+str(i),'w') as f:
+            writer = csv.writer(f, delimiter=',')
             for text1,text2,label in zip(x1_dev,x2_dev,y_dev):
-                f.write(str(label)+"\t"+text1+"\t"+text2+"\n")
+                writer.writerow([str(label),text1,text2])
             f.close()
         del x1_dev
         del y_dev
@@ -225,4 +230,18 @@ class InputHelper(object):
         del vocab_processor
         gc.collect()
         return x1,x2, y
+    
+    def getPCADataSet(self, data_path, vocab_path, max_document_length):
+        x1_temp = self.getJsonPCAData(data_path)
+
+        # Build vocabulary
+        vocab_processor = MyVocabularyProcessor(max_document_length,min_frequency=0)
+        vocab_processor = vocab_processor.restore(vocab_path)
+        print len(vocab_processor.vocabulary_)
+
+        x1 = np.asarray(list(vocab_processor.transform(x1_temp)))
+        # Randomly shuffle data
+        del vocab_processor
+        gc.collect()
+        return x1,x1, np.ones(len(x1))
 

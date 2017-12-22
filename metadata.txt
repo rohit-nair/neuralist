@@ -1,0 +1,8 @@
+1,000,000 songs MSD
+4028 top100 songs
+3885 district artist, title in top100
+1509 distinct simple joins between MSD and Top100
+1648 distinct joins with cleanup (lowercase and transit) b/w MSD and Top100
+793 distinct joins with dedup based on MSD list
+584897 Songs have similarity data which amounts to 56,506,688 pairs.
+##### 584897 rows processed and 56506688 inserted

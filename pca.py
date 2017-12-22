@@ -7,13 +7,14 @@ import time
 import datetime
 from tensorflow.contrib import learn
 from input_helpers import InputHelper
+from sklearn.decomposition import PCA
 # Parameters
 # ==================================================
 
 # Eval Parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
 tf.flags.DEFINE_string("checkpoint_dir", "", "Checkpoint directory from training run")
-tf.flags.DEFINE_string("eval_filepath", "validation.txt0", "Evaluate on this data (Default: None)")
+tf.flags.DEFINE_string("pca_filepath", "2015.json", "Evaluate on this data (Default: None)")
 tf.flags.DEFINE_string("vocab_filepath", "runs/1513630418/checkpoints/vocab", "Load training time vocabulary (Default: None)")
 tf.flags.DEFINE_string("model", "runs/1513630418/checkpoints/model-30000", "Load trained model checkpoint (Default: None)")
 
@@ -29,13 +30,15 @@ for attr, value in sorted(FLAGS.__flags.items()):
     print("{}={}".format(attr.upper(), value))
 print("")
 
-if FLAGS.eval_filepath==None or FLAGS.vocab_filepath==None or FLAGS.model==None :
+if FLAGS.pca_filepath==None or FLAGS.vocab_filepath==None or FLAGS.model==None :
     print("Eval or Vocab filepaths are empty.")
     exit()
 
 # load data and map id-transform based on training time vocabulary
 inpH = InputHelper()
-x1_test,x2_test,y_test = inpH.getTestDataSet(FLAGS.eval_filepath, FLAGS.vocab_filepath, 300)
+x1_test,x2_test,y_test = inpH.getPCADataSet(FLAGS.pca_filepath, FLAGS.vocab_filepath, 300)
+
+pca = PCA(n_components=2)
 
 print("\nEvaluating...\n")
 
@@ -61,6 +64,10 @@ with graph.as_default():
         input_y = graph.get_operation_by_name("input_y").outputs[0]
 
         dropout_keep_prob = graph.get_operation_by_name("dropout_keep_prob").outputs[0]
+        
+        # Song representation
+        rep = graph.get_operation_by_name("output/vout1").outputs[0]
+        
         # Tensors we want to evaluate
         predictions = graph.get_operation_by_name("output/distance").outputs[0]
 
@@ -77,14 +84,20 @@ with graph.as_default():
         all_d=[]
         for db in batches:
             x1_dev_b,x2_dev_b,y_dev_b = zip(*db)
-            batch_predictions, batch_acc, batch_sim = sess.run([predictions,accuracy,sim], {input_x1: x1_dev_b, input_x2: x2_dev_b, input_y:y_dev_b, dropout_keep_prob: 1.0})
+            song_rep, batch_predictions, batch_acc, batch_sim = sess.run([rep, predictions,accuracy,sim], {input_x1: x1_dev_b, input_x2: x2_dev_b, input_y:y_dev_b, dropout_keep_prob: 1.0})
             all_predictions = np.concatenate([all_predictions, batch_predictions])
-            # print(batch_predictions)
             all_d = np.concatenate([all_d, batch_sim])
-            print("DEV acc {}".format(batch_acc))
-        # for ex in all_predictions:
-        #     print ex 
-        for x in zip(np.rint(y_test*10), np.rint(all_d*10)):
-            print x
-        correct_predictions = float(np.mean(np.rint(y_test*10) == np.rint(all_d*10)))
-        print("Accuracy: {:g}".format(correct_predictions))
+            # representations = np.concatenate((representations, song_rep))
+            
+        
+            pca = PCA(n_components=2)
+            res = pca.fit_transform([reps for reps in song_rep])
+            print res.shape
+            print res
+        
+        # for x in zip(np.rint(all_d*10)):
+        #     print x
+        # print "representations: {}".format(len(representations));
+        # print tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='output')
+        # for x in sorted([n.name for n in tf.get_default_graph().as_graph_def().node]):
+        #     print x
