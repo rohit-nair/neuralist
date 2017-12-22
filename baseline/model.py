@@ -1,3 +1,4 @@
+# Accuracy 0.545
 import nltk, string
 from sklearn.feature_extraction.text import TfidfVectorizer
 
