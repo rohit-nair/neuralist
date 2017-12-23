@@ -33,3 +33,5 @@ Fell, Michael, and Caroline Sporleder. 2014. Lyrics based Analysis and Classific
 Balakrishnan, Anusha, and Kalpit Dixit. 2016. Deep-Playlist: Using Recurrent Neural Networks to Predict Song Similarity.
 
 Hochreiter, Sepp, and Jrgen Schmidhuber. 1997. Long short-term memory. Neural computation.
+
+[Dhwaj Raj's deep-siamese-text-similarity implementation](https://github.com/dhwajraj/deep-siamese-text-similarity)
